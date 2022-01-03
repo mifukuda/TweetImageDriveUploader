@@ -5,6 +5,8 @@ from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 import shutil
 
+# Must have 'cache.txt', 'client_secrets.json', and 'images' folder in cwd
+
 # Function for retreiving liked tweet images
 def get_images():
     # BEARER_TOKEN stored as environment variable (re-enter every use)
@@ -15,6 +17,7 @@ def get_images():
     params = {'max_results' : '5', 'expansions' : 'attachments.media_keys', 'media.fields' : 'url'}
     url = 'https://api.twitter.com/2/users/756179614154756096/liked_tweets'
     try:
+        # GET images
         res = requests.get(url, headers=headers, params=params)
         res.raise_for_status()
         print('Downloading files...')
@@ -29,6 +32,7 @@ def get_images():
             # Check if image has already been downloaded/uploaded in cache
             with open('cache.txt', 'r+') as cache_file:
                 if img_url not in cache_file.read():
+                    # Download image
                     img = requests.get(img_url)
                     img.raise_for_status
                     # Write image data to file in binary
