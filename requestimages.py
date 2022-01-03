@@ -20,26 +20,40 @@ def get_images():
         print('Downloading files...')
         # Convert response to JSON and download image from each tweet
         for media in res.json()['includes']['media']:
-            img_url = media['url']
-            img = requests.get(img_url)
-            img.raise_for_status
-            # Write image data to file in binary
-            with open(os.path.join('images', os.path.basename(img_url)), 'wb') as imageFile:
-                for chunk in img.iter_content(100000):
-                    imageFile.write(chunk)
+            try:
+                img_url = media['url']
+            # Catches KeyError if tweet does not contain an image URL
+            except KeyError:
+                print("caught")
+                continue
+            # Check if image has already been downloaded/uploaded in cache
+            with open('cache.txt', 'r+') as cache_file:
+                if img_url not in cache_file.read():
+                    img = requests.get(img_url)
+                    img.raise_for_status
+                    # Write image data to file in binary
+                    with open(os.path.join('images', os.path.basename(img_url)), 'wb') as imageFile:
+                        for chunk in img.iter_content(100000):
+                            imageFile.write(chunk)
+                    # Cache image url
+                    cache_file.write(img_url)
+                    cache_file.write('\n')
     except HTTPError as err:
         print(err)
+    except KeyError:
+        print("No images in liked tweets.")
 
 # Uploading downloaded images to Google Drive folder
 # Documentation: https://pythonhosted.org/PyDrive/quickstart.html#authentication
 def upload_images():
-    print('Uploading files...')
+    print('Authenticating...')
     gauth = GoogleAuth()
     gauth.LocalWebserverAuth()
     drive = GoogleDrive(gauth)
     # Upload files
+    print('Uploading files...')
     for file_name in os.listdir('images'):
-        file = drive.CreateFile({'parents': [{'id': '1nsQen_n5t5c6mrLQbDr6742zN4qTmDy_'}]})
+        file = drive.CreateFile({'title': file_name, 'parents': [{'id': '1nsQen_n5t5c6mrLQbDr6742zN4qTmDy_'}]})
         file.SetContentFile(os.path.join('images', file_name))
         file.Upload()
         file = None
@@ -50,6 +64,13 @@ def cleanup():
     shutil.rmtree('images')
     os.mkdir('images')
 
-get_images()
-upload_images()
-cleanup()
+def main():
+    get_images()
+    if len(os.listdir('images')) == 0:
+        print("No new files to upload.")
+        return
+    upload_images()
+    cleanup()
+
+if __name__ == "__main__":
+    main()
